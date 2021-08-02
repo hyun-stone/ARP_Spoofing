@@ -60,15 +60,8 @@ void get_attacker_mac(char* dev, uint8_t *mac){
 void send_request(pcap_t* handle, uint8_t *target_mac, uint32_t target_ip, uint8_t *source_mac, uint32_t source_ip){
 
     ARP_Packet arp_request;
-    arp_request.eth.des[0] = 0xFF;
-    arp_request.eth.des[1] = 0xFF;
-    arp_request.eth.des[2] = 0xFF;
-    arp_request.eth.des[3] = 0xFF;
-    arp_request.eth.des[4] = 0xFF;
-    arp_request.eth.des[5] = 0xFF;
 
     memset(arp_request.eth.des, 0xFF, 6);
-
     memcpy(arp_request.eth.src,source_mac,sizeof(uint8_t)*6);
     arp_request.eth.pkt_type = htons(0x0806);
 
@@ -207,7 +200,6 @@ int main(int argc, char* argv[]){
     printf("Get victim IP : %d.%d.%d.%d\n",ntohl(victim_ip) & 0xFF, ntohl(victim_ip <<8)&0xFF,ntohl(victim_ip <<16)&0xFF,ntohl(victim_ip <<24)&0xFF);
     gateway_ip = get_ip(argv[3]);
     printf("GET gateway IP : %d.%d.%d.%d\n",ntohl(gateway_ip) & 0xFF, ntohl(gateway_ip <<8)&0xFF,ntohl(gateway_ip <<16)&0xFF,ntohl(gateway_ip <<24)&0xFF);
-
     attacker_ip = get_my_ip(dev);
     printf("Get device IP : %d.%d.%d.%d\n",ntohl(attacker_ip)&0xFF,ntohl(attacker_ip<<8)&0xFF,ntohl(attacker_ip<<16)&0xFF,ntohl(attacker_ip<<24)&0xFF);
 
