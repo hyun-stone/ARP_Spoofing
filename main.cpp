@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdint.h>
 #include "hdr.h"
@@ -65,6 +66,9 @@ void send_request(pcap_t* handle, uint8_t *target_mac, uint32_t target_ip, uint8
     arp_request.eth.des[3] = 0xFF;
     arp_request.eth.des[4] = 0xFF;
     arp_request.eth.des[5] = 0xFF;
+
+    memset(arp_request.eth.des, 0xFF, 6);
+
     memcpy(arp_request.eth.src,source_mac,sizeof(uint8_t)*6);
     arp_request.eth.pkt_type = htons(0x0806);
 
@@ -76,12 +80,8 @@ void send_request(pcap_t* handle, uint8_t *target_mac, uint32_t target_ip, uint8
 
     memcpy(arp_request.arp.src_mac,source_mac,sizeof(uint8_t)*6);
     arp_request.arp.src_ip = htonl(source_ip);
-    arp_request.arp.tag_mac[0] = 0x00;
-    arp_request.arp.tag_mac[1] = 0x00;
-    arp_request.arp.tag_mac[2] = 0x00;
-    arp_request.arp.tag_mac[3] = 0x00;
-    arp_request.arp.tag_mac[4] = 0x00;
-    arp_request.arp.tag_mac[5] = 0x00;
+
+    memset(arp_request.arp.src_mac, 0xFF, 6);
     arp_request.arp.tag_ip = htonl(target_ip);
 
 
