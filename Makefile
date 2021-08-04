@@ -7,7 +7,7 @@ $(TARGET): $(OBJS)
 	$(CC) -o $@ $(OBJS) -lpcap
 	rm *.o
 
-main.o: hdr.h main.cpp
+main.o: hdr.h kbhit.h main.cpp
 
 clean:
 	rm -rf *.o $(TARGET)
