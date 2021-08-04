@@ -6,5 +6,6 @@
 sudo su
 cd <dir>
 make
-./arp_spoofing <interface ex.waln0>
+./arp_spoofing <interface> <victim ip> <gateway ip>
+Example: ./arp_spoofing wlan0 192.168.40.100 192.168.40.1
 ```
