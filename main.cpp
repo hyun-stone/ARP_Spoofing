@@ -19,17 +19,21 @@ typedef struct EthIP{
 #pragma pack(pop)
 
 void usage() {
+
     printf("syntax: send-arp-test <interface> <victim ip> <gateway ip>\n");
     printf("sample: send-arp-test wlan0\n");
 }
 
 uint32_t get_ip(char *ip_string){
+
     unsigned int a, b, c, d;
+
     sscanf(ip_string,"%u.%u.%u.%u", &a, &b, &c, &d);
     return ((a << 24) | (b << 16) | (c << 8) | d);
 }
 
 uint32_t get_my_ip(char *dev){
+
     struct ifreq ifr;
     char ipstr[40];
     int s;
@@ -47,6 +51,7 @@ void get_attacker_mac(char* dev, uint8_t *mac){
 
     struct ifreq ifr;
     int s;
+
     s = socket(AF_INET, SOCK_DGRAM, 0);
     strncpy(ifr.ifr_name, dev,IFNAMSIZ);
     if(ioctl(s,SIOCGIFHWADDR, &ifr) <0)
@@ -102,6 +107,7 @@ void send_request(pcap_t* handle, uint8_t *target_mac, uint32_t target_ip, uint8
 }
 
 void send_arp_reply(pcap_t* handle, uint8_t victim_mac[],uint8_t attacker_mac[],uint32_t gateway_ip,uint32_t victim_ip){
+
     ARP_Packet arp_reply;
     memcpy(arp_reply.eth.des,victim_mac,sizeof(uint8_t)*6);
     memcpy(arp_reply.eth.src,attacker_mac,sizeof(uint8_t)*6);
@@ -151,6 +157,7 @@ void packet_relay(pcap_t *handle, uint8_t *attacker_mac, uint8_t *victim_mac, ui
     init_keyboard();
     while(true){
         if(_kbhit()){
+            close_keyboard();
             break;
         }
         struct pcap_pkthdr* header;
