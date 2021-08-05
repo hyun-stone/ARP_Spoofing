@@ -252,5 +252,6 @@ int main(int argc, char* argv[]){
     printf("Finish pcaket relaying\n");
     arp_recover(handle,victim_mac,attacker_mac,gateway_mac,gateway_ip,victim_ip);
     printf("Recover victim's ARP table\n");
+    pcap_close(handle);
     return 0;
 }
