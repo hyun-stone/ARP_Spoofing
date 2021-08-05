@@ -77,7 +77,7 @@ void send_request(pcap_t* handle, uint8_t *target_mac, uint32_t target_ip, uint8
     memcpy(arp_request.arp.src_mac,source_mac,sizeof(uint8_t)*6);
     arp_request.arp.src_ip = htonl(source_ip);
 
-    memset(arp_request.arp.src_mac, 0xFF, 6);
+    memset(arp_request.arp.tag_mac, 0x00, 6);
     arp_request.arp.tag_ip = htonl(target_ip);
 
     while(true){
